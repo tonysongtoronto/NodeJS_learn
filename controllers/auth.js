@@ -6,8 +6,6 @@
 
 const sendgridTransport = require('nodemailer-sendgrid-transport'); // this doesn't work as i haven't been able to create an sendgrid account
 
-
-
 const User = require('../models/user');
 
 module.exports.getLogin = (req, res, next) => {
