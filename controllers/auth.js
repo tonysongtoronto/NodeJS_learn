@@ -163,13 +163,7 @@ module.exports.postReset = (req, res, next) => {
             })
             .then(result => {
                 if(result) {
-
-                         console.log('Reset Password');
-                     console.log('token');
-                       console.log(token);
-                        console.log('req.body.email');
-                         console.log(req.body.email);
-
+                    
          res.render('auth/new-password', {
                         pageTitle: 'New Password',
                         path: '/new-password',
@@ -179,11 +173,6 @@ module.exports.postReset = (req, res, next) => {
                         userId: result._id.toString(),
                         csrfToken: req.csrfToken()
                     });
-          
-               
-               
-                          //    res.redirect('/');
-
                 }
             })
              .catch(err => {
