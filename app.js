@@ -22,6 +22,7 @@ const errorsController = require('./controllers/errors.js');
 const adminRoutes = require('./routes/admin');
 const shopRoutes = require('./routes/shop');
 const authRoutes = require('./routes/auth');
+const serverRoutes = require('./routes/server.js');
 
 
 // Models
@@ -70,7 +71,16 @@ app.use('/admin', adminRoutes);
 app.use(shopRoutes);
 app.use(authRoutes);
 
+app.use(serverRoutes);
+
+
 app.use(errorsController.get404);
+
+app.use((error, req, res, next) => {
+    res.status(500).render('500', { pageTitle: 'Error!', path: '/500' });
+});
+
+
 
 
 mongoose

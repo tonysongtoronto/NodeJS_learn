@@ -4,7 +4,6 @@ const { validationResult } = require('express-validator');
 
 module.exports.getAddProduct = (req, res, next) => {
 
- 
     res.render('admin/edit-product', {
         pageTitle:'Add Product',
         path: '/admin/add-product',
@@ -15,6 +14,8 @@ module.exports.getAddProduct = (req, res, next) => {
 };
 
 module.exports.postAddProduct = (req, res, next) => {
+
+  
 
     const productTitle = req.body.title;
     const productPrice = req.body.price;
@@ -53,9 +54,21 @@ module.exports.postAddProduct = (req, res, next) => {
     product
         .save()
         .then(result => {
+
             res.redirect('/admin/products');
         })
-        .catch(err => console.log(err));
+        .catch(err => {
+
+         console.log(err);
+        // res.redirect('/500');
+    const error= new Error(err);
+    error.httpStatusCode=500;
+    return next(error);
+
+        }
+    
+    
+    );
 };
 
 
