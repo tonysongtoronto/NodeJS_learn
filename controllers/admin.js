@@ -1,5 +1,6 @@
 const Product = require('../models/product');
 //const cookies = require('../util/cookie');
+const { validationResult } = require('express-validator');
 
 module.exports.getAddProduct = (req, res, next) => {
 
@@ -8,16 +9,38 @@ module.exports.getAddProduct = (req, res, next) => {
         pageTitle:'Add Product',
         path: '/admin/add-product',
         editing: false,
-        isAuthenticated: req.session.isLoggedIn
+        errorMessage: [],
+        validationErrors: []
     });
 };
 
 module.exports.postAddProduct = (req, res, next) => {
+
     const productTitle = req.body.title;
     const productPrice = req.body.price;
     const productImageUrl = req.body.imageUrl;
     const productDescription = req.body.description;
     const userId = req.session.user._id;
+    const errors = validationResult(req);
+
+        if(!errors.isEmpty()) {
+        return res
+            .status(422)
+            .render('admin/edit-product', {
+                pageTitle:'Add Product',
+                path: '/admin/add-product',
+                editing: false,
+                errorMessage: errors.array().map(error => error.msg),
+                product: {
+                    title: productTitle,
+                    imageUrl: productImageUrl,
+                    price: productPrice,
+                    description: productDescription
+                },
+                validationErrors: errors.array()
+            });
+    }
+
 
     const product = new Product({
         title: productTitle,
@@ -34,6 +57,7 @@ module.exports.postAddProduct = (req, res, next) => {
         })
         .catch(err => console.log(err));
 };
+
 
 module.exports.getProducts = (req, res, next) => {
     let errorMessage = req.flash('error');
@@ -72,12 +96,15 @@ module.exports.getProducts = (req, res, next) => {
 };
 
 
+
 module.exports.getEditProduct = (req, res, next) => {
+
+
     const editMode = req.query.edit;
     if(!editMode) return res.redirect('/');
     const productId = req.params.productId;
     
-   Product
+    Product
         .findById(productId)
         .then(product => {
             if(!product || product.userId.toString() !== req.user._id.toString()) {
@@ -88,19 +115,43 @@ module.exports.getEditProduct = (req, res, next) => {
                     pageTitle: product.title,
                     path: '/admin/products',
                     editing: editMode,
-                    product: product
+                    product: product,
+                    errorMessage: [],
+                    validationErrors: []
                 });
             }
         })
         .catch(err => console.log(err));
 };
 
+
 module.exports.postEditProduct = (req, res, next) => {
+
     const productId = req.body.id;
     const productTitle = req.body.title;
     const productPrice = req.body.price;
     const productImageUrl = req.body.imageUrl;
     const productDescription = req.body.description;
+    const errors = validationResult(req);
+  
+    if(!errors.isEmpty()) {
+        return res
+            .status(422)
+            .render('admin/edit-product', {
+                pageTitle: 'Edit Product',
+                path: '/admin/products',
+                editing: true,
+                errorMessage: errors.array().map(error => error.msg),
+                product: {
+                    _id: productId,
+                    title: productTitle,
+                    imageUrl: productImageUrl,
+                    price: productPrice,
+                    description: productDescription
+                },
+                validationErrors: errors.array()
+            });
+    }
 
     Product
         .findById(productId)
