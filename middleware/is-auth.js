@@ -8,9 +8,7 @@ module.exports = (req, res, next) => {
     console.log('❌ No user in session, redirecting to login');
     return res.redirect('/login');
   }
-
-  
-  
+ 
   console.log('✅ User authenticated, proceeding');
   next();
 };

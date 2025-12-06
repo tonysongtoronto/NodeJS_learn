@@ -3,9 +3,7 @@ const { body } = require('express-validator');
 module.exports.productInfo = [
     body('title')
         .isString()
-        .isLength({ min: 3, max: 25 }).withMessage('title can has to be 3 to 25 characters long'),
-    body('imageUrl')
-        .isURL().withMessage('please provide a valid url for image'),
+        .isLength({ min: 3, max: 25 }).withMessage('title can has to be 3 to 25 characters long').trim(),
     body('price')
         .isFloat(),
     body('description')

@@ -1,6 +1,11 @@
 const Product = require('../models/product');
 const Order = require('../models/order');
 const User = require('../models/user');
+const path = require('path');
+const PDFDocument = require('pdfkit');
+const fs = require('fs').promises;
+const fsSync = require('fs');
+
 
 module.exports.getIndex = (req, res, next) => {
 
@@ -152,4 +157,72 @@ module.exports.postOrder = (req, res, next) => {
             res.redirect('/orders');
         })
         .catch(err => console.log(err));
+};
+
+
+
+module.exports.getInvoice = async (req, res, next) => {
+    try {
+        const orderId = req.params.orderId;
+        const order = await Order.findById(orderId);
+        
+        if (!order) {
+            return next(new Error('No order found'));
+        }
+        
+        // 权限检查
+        if (order.user.userId.toString() !== req.user._id.toString()) {
+            return next(new Error('Unauthorized access'));
+        }
+        
+        const invoiceName = 'invoice-' + orderId + '.pdf';
+        const invoicePath = path.join('data', 'invoices', invoiceName);
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline; filename="' + invoiceName + '"');
+        
+        // 检查文件是否已存在
+        if (fsSync.existsSync(invoicePath)) {
+            // 直接发送已存在的文件
+            const fileStream = fsSync.createReadStream(invoicePath);
+            return fileStream.pipe(res);
+        }
+        
+        // 创建目录（如果不存在）
+        const dir = path.join('data', 'invoices');
+        await fs.mkdir(dir, { recursive: true });
+        
+        // 创建新 PDF
+        const pdfDoc = new PDFDocument();
+        
+        // 同时保存到文件和发送到浏览器
+        pdfDoc.pipe(fsSync.createWriteStream(invoicePath));
+        pdfDoc.pipe(res);
+        
+        // PDF 内容
+        pdfDoc.fontSize(20).text('Invoice # ' + order._id);
+        pdfDoc.text('------------------------------');
+        pdfDoc.fontSize(12);
+        
+        let index = 1;
+        let totalPrice = 0;
+        order.products.forEach(product => {
+            let calculatedPrice = product.price * product.quantity;
+            pdfDoc.text(index + '. ' + product.title + ' - ' + product.quantity + ' x $' + product.price.toFixed(2) + ' = $' + calculatedPrice.toFixed(2));
+            totalPrice += calculatedPrice;
+            index++;
+        });
+        
+        pdfDoc.text('------------------------------');
+        pdfDoc.fontSize(16).text('Total: $' + totalPrice.toFixed(2));
+        
+        pdfDoc.end();
+        
+    } 
+
+       catch(err)  {
+            const error = new Error(err);
+            error.httpStatusCode = 500;
+            next(error);
+        }
 };

@@ -1,6 +1,8 @@
 const Product = require('../models/product');
-//const cookies = require('../util/cookie');
+
 const { validationResult } = require('express-validator');
+const fileHelper = require('../util/file');
+const fs = require('fs');
 
 module.exports.getAddProduct = (req, res, next) => {
 
@@ -15,30 +17,49 @@ module.exports.getAddProduct = (req, res, next) => {
 
 module.exports.postAddProduct = (req, res, next) => {
 
+    const fileTypes = ['image/png', 'image/jpg', 'image/jpeg'];
+
   
 
-    const productTitle = req.body.title;
+   const productTitle = req.body.title;
     const productPrice = req.body.price;
-    const productImageUrl = req.body.imageUrl;
+    const productImage = req.file;
     const productDescription = req.body.description;
     const userId = req.session.user._id;
     const errors = validationResult(req);
 
-        if(!errors.isEmpty()) {
+    let hasError = false;
+    let errorMessage = [];
+    let validationErrors = [];
+
+    if (!productImage) {
+        hasError = true;
+        errorMessage = ['attached file is not an image'];
+        validationErrors = [{ param: 'image' }];
+    } else if (!fileTypes.includes(productImage.mimetype)) {
+        hasError = true;
+        errorMessage = ['attached file is not an image'];
+        validationErrors = [{ param: 'image' }];
+    }
+
+
+
+    if(!errors.isEmpty() || hasError) {
+        errorMessage = [...errorMessage, ...errors.array().map(error => error.msg)];
+        validationErrors = [...validationErrors, ...errors.array()];
         return res
             .status(422)
             .render('admin/edit-product', {
                 pageTitle:'Add Product',
                 path: '/admin/add-product',
                 editing: false,
-                errorMessage: errors.array().map(error => error.msg),
+                errorMessage: errorMessage,
                 product: {
                     title: productTitle,
-                    imageUrl: productImageUrl,
                     price: productPrice,
                     description: productDescription
                 },
-                validationErrors: errors.array()
+                validationErrors: validationErrors
             });
     }
 
@@ -46,10 +67,12 @@ module.exports.postAddProduct = (req, res, next) => {
     const product = new Product({
         title: productTitle,
         price: productPrice,
-        imageUrl: productImageUrl,
+        imageUrl: productImage.path,
         description: productDescription,
         userId: userId
     });
+
+
     
     product
         .save()
@@ -140,29 +163,43 @@ module.exports.getEditProduct = (req, res, next) => {
 
 module.exports.postEditProduct = (req, res, next) => {
 
+    const fileTypes = ['image/png', 'image/jpg', 'image/jpeg'];
+
     const productId = req.body.id;
     const productTitle = req.body.title;
     const productPrice = req.body.price;
-    const productImageUrl = req.body.imageUrl;
+    const productImage =  req.file;
     const productDescription = req.body.description;
     const errors = validationResult(req);
+
+    
+	let hasError = false;
+    let errorMessage = [];
+    let validationErrors = [];
+
+
+if (productImage && !fileTypes.includes(productImage.mimetype) ) {
+        hasError = true;
+        errorMessage = ['attached file is not an image'];
+        validationErrors = [{ param: 'image' }];		
+    }
   
-    if(!errors.isEmpty()) {
+    if(!errors.isEmpty()|| hasError) {
         return res
             .status(422)
             .render('admin/edit-product', {
                 pageTitle: 'Edit Product',
                 path: '/admin/products',
                 editing: true,
-                errorMessage: errors.array().map(error => error.msg),
+                errorMessage: [...errorMessage, ...errors.array().map(error => error.msg)],
                 product: {
                     _id: productId,
                     title: productTitle,
-                    imageUrl: productImageUrl,
+                    imageUrl: '',
                     price: productPrice,
                     description: productDescription
                 },
-                validationErrors: errors.array()
+                validationErrors: [...validationErrors, ...errors.array()],
             });
     }
 
@@ -172,7 +209,16 @@ module.exports.postEditProduct = (req, res, next) => {
             if(product.userId.toString() === req.user._id.toString()) {
                 product.title = productTitle;
                 product.price = productPrice;
-                product.imageUrl = productImageUrl;
+                 if(productImage?.path) {
+
+                    if (fs.existsSync(product.imageUrl)) {
+    fileHelper.deleteFile(product.imageUrl);
+} 
+
+            
+
+                   product.imageUrl = productImage.path;
+                 }
                 product.description = productDescription;
                 return product.save();
             } else {
@@ -186,20 +232,43 @@ module.exports.postEditProduct = (req, res, next) => {
         .catch(err => console.log(err));
 };
 
-
 module.exports.postDeleteProduct = (req, res, next) => {
     const productId = req.body.productId;
+
     Product
-        // .findByIdAndRemove(productId) // deprecated without setting 'useFindAndModify: false'
-        // .findByIdAndDelete(productId)
-        .deleteOne({
-            _id: productId,
-            userId: req.user._id
+        .findById(productId)
+        .then(product => {
+            if (!product) {
+                req.flash('alert', 'Product not found.');
+                return res.redirect('/admin/products');
+            }
+
+            // 检查权限
+            if (product.userId.toString() !== req.user._id.toString()) {
+                req.flash('alert', 'You can not delete this product.');
+                return res.redirect('/admin/products');
+            }
+
+            // 删除图片文件
+            if (product.imageUrl && fs.existsSync(product.imageUrl)) {
+                fileHelper.deleteFile(product.imageUrl);
+            }
+
+            // 删除产品
+            return Product.deleteOne({ _id: productId, userId: req.user._id });
         })
         .then(result => {
-            if(result.deletedCount > 0) req.flash('success', 'Product successfully deleted.');
-            else req.flash('alert', 'You can not delete this product.');
+            if (result && result.deletedCount > 0) {
+                req.flash('success', 'Product successfully deleted.');
+            } else {
+                req.flash('alert', 'Failed to delete product.');
+            }
             res.redirect('/admin/products');
         })
-        .catch(err => console.log(err));
+        .catch(err => {
+            console.log(err);
+            const error = new Error(err);
+            error.httpStatusCode = 500;
+            return next(error);
+        });
 };
