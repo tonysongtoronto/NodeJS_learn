@@ -22,11 +22,19 @@
                             <p class="product__description"><%= product.description %></p>
                         </div>
                         <div class="card__actions">
-                      <%- include('../includes/add-to-cart.ejs',{product:product})   %>
+                               <a href="/product/<%= product._id %>" class="btn">Details</a>
+                         <% if(isAuthenticated) { %>
+                                <%- include('../includes/add-to-cart', {product: product}) %>
+                            <% } %>
                         </div>
                     </article>
                 <% } %>
             </div>
+     <%- include('../includes/pagination.ejs',
+      {currentPage: currentPage,
+         hasPreviousPage: hasPreviousPage,
+          hasNextPage: hasNextPage, 
+          lastPage: lastPage}) %>
         <% } else { %>
             <h1>No Products Found</h1>
         <% } %>

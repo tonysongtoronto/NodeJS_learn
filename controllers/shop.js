@@ -5,38 +5,85 @@ const path = require('path');
 const PDFDocument = require('pdfkit');
 const fs = require('fs').promises;
 const fsSync = require('fs');
+const ITEMS_PER_PAGE = require('../util/general-keys').ITEMS_PER_PAGE;
 
 
 module.exports.getIndex = (req, res, next) => {
+    let page = +req.query.page || 1;
+    page = Math.max(page, 1);
+    let totalItems;
 
     Product
         .find()
+        .countDocuments()
+        .then(count => {
+            totalItems = count;
+
+            return Product
+                .find()
+                .skip((page - 1) * ITEMS_PER_PAGE)
+                .limit(ITEMS_PER_PAGE);
+        })
         .then(products => {
+            const currentPage = page;
+            const lastPage = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            const hasPreviousPage = page > 1;
+            // const hasNextPage = page * ITEMS_PER_PAGE < totalItems;
+            const hasNextPage = page < lastPage;
+
             res.render('shop/index', {
                 pageTitle: 'Shop',
                 path: '/',
                 products: products,
-           
+                currentPage: currentPage,
+                hasPreviousPage: hasPreviousPage,
+                hasNextPage: hasNextPage,
+                lastPage: lastPage
             });
-
         })
-        .catch(err => console.log(err));
+        .catch(err => {
+            const error = new Error(err);
+            error.httpStatusCode = 500;
+            return next(error);
+        });
 };
 
 module.exports.getProducts = (req, res, next) => {
+    let page = +req.query.page || 1;
+    page = Math.max(page, 1);
+    let totalItems;
+
     Product
         .find()
-        // .select('title price -_id')
-        // .populate('userId', '_id')
+        .countDocuments()
+        .then(count => {
+            totalItems = count;
+
+            return Product
+                .find()
+                .skip((page - 1) * ITEMS_PER_PAGE)
+                .limit(ITEMS_PER_PAGE);
+        })
         .then(products => {
+            const lastPage = Math.ceil(totalItems / ITEMS_PER_PAGE);
+            const hasPreviousPage = page > 1;
+            const hasNextPage = page < lastPage;
+
             res.render('shop/product-list', {
                 pageTitle: 'Products',
                 path: '/products',
                 products: products,
-                isAuthenticated: req.session.isLoggedIn
+                currentPage: page,
+                lastPage: lastPage,
+                hasPreviousPage: hasPreviousPage,
+                hasNextPage: hasNextPage
             });
         })
-        .catch(err => console.log(err));
+        .catch(err => {
+            const eror = new Error(err);
+            error.httpStatusCode(500);
+            return next(error);
+        });
 };
 
 module.exports.getProduct = (req, res, next) => {
