@@ -9,6 +9,7 @@ const envKeys = require('../keys');
 const Stripe = require('stripe');
 const ITEMS_PER_PAGE = require('../util/general-keys').ITEMS_PER_PAGE;
 const stripe = require('stripe')(envKeys.STRIPE_SECRET_KEY);
+const STRIPE_PUBLISHABLE_KEY=envKeys.STRIPE_PUBLISHABLE_KEY
 
 
 module.exports.getIndex = (req, res, next) => {
@@ -314,7 +315,8 @@ module.exports.getCheckout = (req, res, next) => {
                 path: '/shop/checkout',
                 products: products,
                 totalSum: total,
-                sessionId: session.id
+                sessionId: session.id,
+                STRIPE_PUBLISHABLE_KEY:STRIPE_PUBLISHABLE_KEY
             });
         })
         .catch(err => {
